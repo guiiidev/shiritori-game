@@ -1,0 +1,11 @@
+{
+  "name": "shiritori-game",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "socket.io": "^4.7.2",
+    "vercel": "^41.4.1"
+  }
+}

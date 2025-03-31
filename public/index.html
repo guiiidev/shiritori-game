@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shiritori - Jogo de Palavras</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        
+        .game-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .mode-selector {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 0 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        .game-area {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .word-display {
+            font-size: 24px;
+            margin: 20px 0;
+            min-height: 40px;
+            text-align: center;
+        }
+        
+        .last-letter {
+            font-weight: bold;
+            color: #e74c3c;
+            font-size: 28px;
+        }
+        
+        input {
+            padding: 10px;
+            font-size: 16px;
+            width: 200px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        
+        .used-words {
+            margin-top: 20px;
+            max-height: 150px;
+            overflow-y: auto;
+            width: 100%;
+            border: 1px solid #eee;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .used-words h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        
+        .used-words ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        
+        .used-words li {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .multiplayer-link {
+            display: none;
+            margin-top: 20px;
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            word-break: break-all;
+        }
+        
+        .player-turn {
+            font-weight: bold;
+            color: #27ae60;
+            margin-bottom: 10px;
+        }
+        
+        .game-over {
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .rules {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        
+        .rules h2 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Shiritori - Jogo de Palavras</h1>
+    
+    <div class="game-container">
+        <div class="mode-selector">
+            <button id="singlePlayerBtn">Single Player (vs IA)</button>
+            <button id="multiplayerBtn">Multiplayer</button>
+        </div>
+        
+        <div id="multiplayerLink" class="multiplayer-link">
+            <p>Compartilhe este link com seu amigo:</p>
+            <p id="gameLink"></p>
+        </div>
+        
+        <div id="gameArea" class="game-area">
+            <div id="playerTurn" class="player-turn">Sua vez!</div>
+            <div class="word-display">
+                Palavra atual: <span id="currentWord"></span>
+                <br>
+                Próxima letra: <span id="lastLetter" class="last-letter"></span>
+            </div>
+            
+            <div>
+                <input type="text" id="wordInput" placeholder="Digite uma palavra...">
+                <button id="submitWord">Enviar</button>
+            </div>
+            
+            <div class="used-words">
+                <h3>Palavras usadas:</h3>
+                <ul id="usedWordsList"></ul>
+            </div>
+            
+            <div id="gameOver" class="game-over"></div>
+        </div>
+    </div>
+    
+    <div class="rules">
+        <h2>Como jogar Shiritori</h2>
+        <p>Shiritori é um jogo de palavras onde cada jogador deve dizer uma palavra que começa com a última letra da palavra anterior.</p>
+        <p><strong>Regras:</strong></p>
+        <ul>
+            <li>A palavra deve começar com a última letra da palavra anterior</li>
+            <li>Não pode repetir palavras que já foram usadas</li>
+            <li>Palavras devem ser substantivos comuns em português</li>
+            <li>Não são permitidas palavras terminadas em letras que não iniciam outras palavras (como "quiz")</li>
+            <li>Quem não conseguir pensar em uma palavra válida perde!</li>
+        </ul>
+    </div>
+    
+    <script>
+        // Dados do jogo
+        const gameState = {
+            currentWord: '',
+            usedWords: [],
+            currentPlayer: 1,
+            gameOver: false,
+            isMultiplayer: false,
+            roomId: null,
+            peerConnection: null
+        };
+        
+        // Palavras conhecidas pela IA (lista simplificada)
+        const knownWords = [
+            'abacaxi', 'banana', 'cachorro', 'dado', 'elefante', 'fogo', 'gato', 
+            'hotel', 'igreja', 'janela', 'kiwi', 'lua', 'macaco', 'navio', 'ovo', 
+            'pato', 'queijo', 'rato', 'sapo', 'tigre', 'uva', 'vaca', 'xadrez', 
+            'zebra', 'árvore', 'bola', 'casa', 'dente', 'escada', 'flor', 'girafa', 
+            'hora', 'ilha', 'jornal', 'lápis', 'mala', 'nuvem', 'olho', 'pipa', 
+            'quadro', 'rosa', 'sol', 'tatu', 'urso', 'vento', 'waffle', 'xícara', 
+            'yakissoba', 'zinco'
+        ];
+        
+        // Elementos do DOM
+        const singlePlayerBtn = document.getElementById('singlePlayerBtn');
+        const multiplayerBtn = document.getElementById('multiplayerBtn');
+        const gameArea = document.getElementById('gameArea');
+        const currentWordEl = document.getElementById('currentWord');
+        const lastLetterEl = document.getElementById('lastLetter');
+        const wordInput = document.getElementById('wordInput');
+        const submitWord = document.getElementById('submitWord');
+        const usedWordsList = document.getElementById('usedWordsList');
+        const playerTurn = document.getElementById('playerTurn');
+        const gameOver = document.getElementById('gameOver');
+        const multiplayerLink = document.getElementById('multiplayerLink');
+        const gameLink = document.getElementById('gameLink');
+        
+        // Inicialização
+        function initGame(isMultiplayer = false) {
+            gameState.isMultiplayer = isMultiplayer;
+            gameState.currentWord = getRandomStartingWord();
+            gameState.usedWords = [gameState.currentWord];
+            gameState.currentPlayer = 1;
+            gameState.gameOver = false;
+            
+            updateGameDisplay();
+            gameArea.style.display = 'flex';
+            
+            if (isMultiplayer) {
+                setupMultiplayer();
+            }
+        }
+        
+        // Configuração do multiplayer
+        // Substitua a função setupMultiplayer por esta:
+        function setupMultiplayer() {
+        // Conecta ao WebSocket
+        const socket = io();
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomParam = urlParams.get('room');
+        
+        if (roomParam) {
+            // Entrando em uma sala existente
+            gameState.roomId = roomParam;
+            socket.emit('joinRoom', roomParam);
+        } else {
+            // Criando nova sala
+            gameState.roomId = generateRoomId();
+            socket.emit('joinRoom', gameState.roomId);
+            
+            // Mostra o link para compartilhar
+            const shareLink = `${window.location.origin}${window.location.pathname}?room=${gameState.roomId}`;
+            gameLink.textContent = shareLink;
+            multiplayerLink.style.display = 'block';
+        }
+        
+        // Configura listeners do Socket.io
+        socket.on('gameStart', (initialGameState) => {
+            Object.assign(gameState, initialGameState);
+            updateGameDisplay();
+        });
+        
+        socket.on('gameUpdate', (newGameState) => {
+            Object.assign(gameState, newGameState);
+            updateGameDisplay();
+        });
+        
+        socket.on('gameOver', (message) => {
+            endGame(message);
+        });
+        
+        socket.on('roomFull', () => {
+            alert('Sala cheia! Crie uma nova sala.');
+            window.location.href = window.location.origin + window.location.pathname;
+        });
+        
+        socket.on('invalidMove', () => {
+            alert('Jogada inválida! Tente outra palavra.');
+        });
+        }
+
+        // Modifique a função makeMove para:
+        function makeMove(word) {
+        if (gameState.gameOver) return;
+        
+        word = word.trim().toLowerCase();
+        
+        if (!isValidWord(word)) return;
+        
+        if (gameState.isMultiplayer) {
+            // Envia a jogada para o servidor
+            socket.emit('makeMove', {
+            roomId: gameState.roomId,
+            word: word
+            });
+        } else {
+            // Lógica single player existente
+            gameState.currentWord = word;
+            gameState.usedWords.push(word);
+            updateGameDisplay();
+            
+            setTimeout(() => {
+            makeAIMove();
+            }, 1000);
+        }
+        }
+        
+        // Gera um ID de sala aleatório
+        function generateRoomId() {
+            return Math.random().toString(36).substring(2, 8);
+        }
+        
+        // Obtém uma palavra inicial aleatória
+        function getRandomStartingWord() {
+            return knownWords[Math.floor(Math.random() * knownWords.length)];
+        }
+        
+        // Atualiza a exibição do jogo
+        function updateGameDisplay() {
+            currentWordEl.textContent = gameState.currentWord;
+            const lastLetter = gameState.currentWord.slice(-1).toUpperCase();
+            lastLetterEl.textContent = lastLetter;
+            
+            usedWordsList.innerHTML = '';
+            gameState.usedWords.forEach(word => {
+                const li = document.createElement('li');
+                li.textContent = word;
+                usedWordsList.appendChild(li);
+            });
+            
+            if (gameState.isMultiplayer) {
+                playerTurn.textContent = gameState.currentPlayer === 1 ? 'Sua vez!' : 'Aguardando o outro jogador...';
+                wordInput.disabled = gameState.currentPlayer !== 1;
+            } else {
+                playerTurn.textContent = 'Sua vez!';
+                wordInput.disabled = false;
+            }
+            
+            if (gameState.gameOver) {
+                wordInput.disabled = true;
+                submitWord.disabled = true;
+            }
+        }
+        
+        // Valida uma palavra
+        function isValidWord(word) {
+            if (!word || word.length < 2) return false;
+            
+            // Verifica se começa com a última letra da palavra atual
+            const lastLetter = gameState.currentWord.slice(-1).toLowerCase();
+            if (word[0].toLowerCase() !== lastLetter) {
+                alert(`A palavra deve começar com a letra "${lastLetter.toUpperCase()}"!`);
+                return false;
+            }
+            
+            // Verifica se já foi usada
+            if (gameState.usedWords.includes(word.toLowerCase())) {
+                alert('Esta palavra já foi usada!');
+                return false;
+            }
+            
+            // Verifica se termina com letra problemática
+            const problematicEndings = ['q', 'x', 'w', 'y'];
+            const lastChar = word.slice(-1).toLowerCase();
+            if (problematicEndings.includes(lastChar)) {
+                alert(`Palavras não podem terminar com "${lastChar.toUpperCase()}"!`);
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // Processa uma jogada
+        function makeMove(word) {
+            if (gameState.gameOver) return;
+            
+            word = word.trim().toLowerCase();
+            
+            if (!isValidWord(word)) return;
+            
+            gameState.currentWord = word;
+            gameState.usedWords.push(word);
+            
+            if (gameState.isMultiplayer) {
+                // Em um caso real, enviaria a jogada para o outro jogador
+                gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
+            } else {
+                // Modo single player - vez da IA
+                setTimeout(() => {
+                    makeAIMove();
+                }, 1000);
+            }
+            
+            updateGameDisplay();
+        }
+        
+        // Jogada da IA
+        function makeAIMove() {
+            if (gameState.gameOver) return;
+            
+            const lastLetter = gameState.currentWord.slice(-1).toLowerCase();
+            const possibleWords = knownWords.filter(word => 
+                word[0] === lastLetter && 
+                !gameState.usedWords.includes(word)
+            );
+            
+            if (possibleWords.length === 0) {
+                endGame('IA ficou sem palavras! Você venceu!');
+                return;
+            }
+            
+            const aiWord = possibleWords[Math.floor(Math.random() * possibleWords.length)];
+            gameState.currentWord = aiWord;
+            gameState.usedWords.push(aiWord);
+            
+            updateGameDisplay();
+            
+            // Verifica se o jogador tem palavras possíveis
+            const nextLetter = aiWord.slice(-1).toLowerCase();
+            const playerPossibleWords = knownWords.filter(word => 
+                word[0] === nextLetter && 
+                !gameState.usedWords.includes(word)
+            );
+            
+            if (playerPossibleWords.length === 0) {
+                endGame('Você ficou sem palavras! IA venceu!');
+            }
+        }
+        
+        // Finaliza o jogo
+        function endGame(message) {
+            gameState.gameOver = true;
+            gameOver.textContent = message;
+            updateGameDisplay();
+        }
+        
+        // Event listeners
+        singlePlayerBtn.addEventListener('click', () => {
+            initGame(false);
+            multiplayerLink.style.display = 'none';
+        });
+        
+        multiplayerBtn.addEventListener('click', () => {
+            initGame(true);
+        });
+        
+        submitWord.addEventListener('click', () => {
+            const word = wordInput.value.trim();
+            if (word) {
+                makeMove(word);
+                wordInput.value = '';
+            }
+        });
+        
+        wordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const word = wordInput.value.trim();
+                if (word) {
+                    makeMove(word);
+                    wordInput.value = '';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
