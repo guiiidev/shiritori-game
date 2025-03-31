@@ -249,51 +249,35 @@
         // Configuração do multiplayer
         // Substitua a função setupMultiplayer por esta:
         function setupMultiplayer() {
-        // Conecta ao WebSocket
-        const socket = io();
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const roomParam = urlParams.get('room');
-        
-        if (roomParam) {
-            // Entrando em uma sala existente
-            gameState.roomId = roomParam;
-            socket.emit('joinRoom', roomParam);
-        } else {
-            // Criando nova sala
-            gameState.roomId = generateRoomId();
-            socket.emit('joinRoom', gameState.roomId);
-            
-            // Mostra o link para compartilhar
-            const shareLink = `${window.location.origin}${window.location.pathname}?room=${gameState.roomId}`;
-            gameLink.textContent = shareLink;
-            multiplayerLink.style.display = 'block';
-        }
-        
-        // Configura listeners do Socket.io
-        socket.on('gameStart', (initialGameState) => {
-            Object.assign(gameState, initialGameState);
-            updateGameDisplay();
-        });
-        
-        socket.on('gameUpdate', (newGameState) => {
-            Object.assign(gameState, newGameState);
-            updateGameDisplay();
-        });
-        
-        socket.on('gameOver', (message) => {
-            endGame(message);
-        });
-        
-        socket.on('roomFull', () => {
-            alert('Sala cheia! Crie uma nova sala.');
-            window.location.href = window.location.origin + window.location.pathname;
-        });
-        
-        socket.on('invalidMove', () => {
-            alert('Jogada inválida! Tente outra palavra.');
-        });
-        }
+  gameState.isMultiplayer = true;
+  gameState.roomId = generateRoomId();
+  
+  // Mostra o link para compartilhar
+  const currentUrl = window.location.href.split('?')[0];
+  const shareLink = `${currentUrl}?room=${gameState.roomId}`;
+  
+  gameLink.textContent = shareLink;
+  multiplayerLink.style.display = 'block';
+  
+  // Verifica se está entrando em uma sala existente
+  const urlParams = new URLSearchParams(window.location.search);
+  const roomParam = urlParams.get('room');
+  
+  if (roomParam && roomParam !== gameState.roomId) {
+    // Entrando em um jogo existente
+    gameState.roomId = roomParam;
+    gameState.currentPlayer = 2;
+    playerTurn.textContent = 'Aguardando o outro jogador...';
+    multiplayerLink.style.display = 'none';
+    
+    // Simula conexão com o outro jogador
+    setTimeout(() => {
+      alert('Conectado ao jogo! Aguarde sua vez.');
+    }, 1000);
+  }
+  
+  gameArea.style.display = 'flex';
+}
 
         // Modifique a função makeMove para:
         function makeMove(word) {
