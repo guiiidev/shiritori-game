@@ -142,20 +142,41 @@
             color: #2c3e50;
             margin-top: 0;
         }
+        
+        #copyLinkBtn {
+            margin-top: 10px;
+            background-color: #2ecc71;
+        }
+        
+        #copyLinkBtn:hover {
+            background-color: #27ae60;
+        }
+        
+        .waiting-message {
+            color: #e67e22;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+        }
     </style>
 </head>
 <body>
     <h1>Shiritori - Jogo de Palavras</h1>
     
     <div class="game-container">
-        <div class="mode-selector">
+        <div class="mode-selector" id="modeSelector">
             <button id="singlePlayerBtn">Single Player (vs IA)</button>
             <button id="multiplayerBtn">Multiplayer</button>
         </div>
         
         <div id="multiplayerLink" class="multiplayer-link">
             <p>Compartilhe este link com seu amigo:</p>
-            <p id="gameLink"></p>
+            <p id="gameLink" style="background: #eee; padding: 8px; border-radius: 4px;"></p>
+            <button id="copyLinkBtn">Copiar Link</button>
+        </div>
+        
+        <div id="waitingMessage" class="waiting-message" style="display: none;">
+            Aguardando outro jogador se conectar...
         </div>
         
         <div id="gameArea" class="game-area">
@@ -202,7 +223,7 @@
             gameOver: false,
             isMultiplayer: false,
             roomId: null,
-            peerConnection: null
+            socket: null
         };
         
         // Palavras conhecidas pela IA (lista simplificada)
@@ -212,8 +233,7 @@
             'pato', 'queijo', 'rato', 'sapo', 'tigre', 'uva', 'vaca', 'xadrez', 
             'zebra', 'árvore', 'bola', 'casa', 'dente', 'escada', 'flor', 'girafa', 
             'hora', 'ilha', 'jornal', 'lápis', 'mala', 'nuvem', 'olho', 'pipa', 
-            'quadro', 'rosa', 'sol', 'tatu', 'urso', 'vento', 'waffle', 'xícara', 
-            'yakissoba', 'zinco'
+            'quadro', 'rosa', 'sol', 'tatu', 'urso', 'vento', 'waffle', 'xícara'
         ];
         
         // Elementos do DOM
@@ -229,6 +249,9 @@
         const gameOver = document.getElementById('gameOver');
         const multiplayerLink = document.getElementById('multiplayerLink');
         const gameLink = document.getElementById('gameLink');
+        const copyLinkBtn = document.getElementById('copyLinkBtn');
+        const waitingMessage = document.getElementById('waitingMessage');
+        const modeSelector = document.getElementById('modeSelector');
         
         // Inicialização
         function initGame(isMultiplayer = false) {
@@ -238,71 +261,56 @@
             gameState.currentPlayer = 1;
             gameState.gameOver = false;
             
-            updateGameDisplay();
-            gameArea.style.display = 'flex';
-            
             if (isMultiplayer) {
                 setupMultiplayer();
+            } else {
+                gameArea.style.display = 'flex';
+                multiplayerLink.style.display = 'none';
+                waitingMessage.style.display = 'none';
+                updateGameDisplay();
             }
         }
         
         // Configuração do multiplayer
-        // Substitua a função setupMultiplayer por esta:
         function setupMultiplayer() {
-  gameState.isMultiplayer = true;
-  gameState.roomId = generateRoomId();
-  
-  // Mostra o link para compartilhar
-  const currentUrl = window.location.href.split('?')[0];
-  const shareLink = `${currentUrl}?room=${gameState.roomId}`;
-  
-  gameLink.textContent = shareLink;
-  multiplayerLink.style.display = 'block';
-  
-  // Verifica se está entrando em uma sala existente
-  const urlParams = new URLSearchParams(window.location.search);
-  const roomParam = urlParams.get('room');
-  
-  if (roomParam && roomParam !== gameState.roomId) {
-    // Entrando em um jogo existente
-    gameState.roomId = roomParam;
-    gameState.currentPlayer = 2;
-    playerTurn.textContent = 'Aguardando o outro jogador...';
-    multiplayerLink.style.display = 'none';
-    
-    // Simula conexão com o outro jogador
-    setTimeout(() => {
-      alert('Conectado ao jogo! Aguarde sua vez.');
-    }, 1000);
-  }
-  
-  gameArea.style.display = 'flex';
-}
-
-        // Modifique a função makeMove para:
-        function makeMove(word) {
-        if (gameState.gameOver) return;
-        
-        word = word.trim().toLowerCase();
-        
-        if (!isValidWord(word)) return;
-        
-        if (gameState.isMultiplayer) {
-            // Envia a jogada para o servidor
-            socket.emit('makeMove', {
-            roomId: gameState.roomId,
-            word: word
-            });
-        } else {
-            // Lógica single player existente
-            gameState.currentWord = word;
-            gameState.usedWords.push(word);
-            updateGameDisplay();
+            // Simulação de conexão multiplayer
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomParam = urlParams.get('room');
             
-            setTimeout(() => {
-            makeAIMove();
-            }, 1000);
-        }
+            if (roomParam) {
+                // Entrando em um jogo existente
+                gameState.roomId = roomParam;
+                gameState.currentPlayer = 2;
+                multiplayerLink.style.display = 'none';
+                modeSelector.style.display = 'none';
+                waitingMessage.style.display = 'none';
+                gameArea.style.display = 'flex';
+                playerTurn.textContent = 'Aguardando o outro jogador...';
+                
+                // Simula conexão com o outro jogador
+                setTimeout(() => {
+                    alert('Conectado ao jogo! Aguarde sua vez.');
+                    updateGameDisplay();
+                }, 1000);
+            } else {
+                // Criando novo jogo
+                gameState.roomId = generateRoomId();
+                const currentUrl = window.location.href.split('?')[0];
+                const shareLink = `${currentUrl}?room=${gameState.roomId}`;
+                
+                gameLink.textContent = shareLink;
+                multiplayerLink.style.display = 'block';
+                waitingMessage.style.display = 'block';
+                modeSelector.style.display = 'none';
+                gameArea.style.display = 'none';
+                
+                // Simula espera por outro jogador
+                setTimeout(() => {
+                    waitingMessage.style.display = 'none';
+                    gameArea.style.display = 'flex';
+                    updateGameDisplay();
+                }, 3000);
+            }
         }
         
         // Gera um ID de sala aleatório
@@ -384,6 +392,23 @@
             if (gameState.isMultiplayer) {
                 // Em um caso real, enviaria a jogada para o outro jogador
                 gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
+                
+                // Simula resposta do outro jogador
+                if (gameState.currentPlayer === 2) {
+                    setTimeout(() => {
+                        const lastLetter = gameState.currentWord.slice(-1).toLowerCase();
+                        const possibleWords = knownWords.filter(w => 
+                            w[0] === lastLetter && !gameState.usedWords.includes(w)
+                        );
+                        
+                        if (possibleWords.length > 0) {
+                            const opponentWord = possibleWords[Math.floor(Math.random() * possibleWords.length)];
+                            makeMove(opponentWord);
+                        } else {
+                            endGame('Seu amigo ficou sem palavras! Você venceu!');
+                        }
+                    }, 1500);
+                }
             } else {
                 // Modo single player - vez da IA
                 setTimeout(() => {
@@ -435,14 +460,9 @@
         }
         
         // Event listeners
-        singlePlayerBtn.addEventListener('click', () => {
-            initGame(false);
-            multiplayerLink.style.display = 'none';
-        });
+        singlePlayerBtn.addEventListener('click', () => initGame(false));
         
-        multiplayerBtn.addEventListener('click', () => {
-            initGame(true);
-        });
+        multiplayerBtn.addEventListener('click', () => initGame(true));
         
         submitWord.addEventListener('click', () => {
             const word = wordInput.value.trim();
@@ -459,6 +479,23 @@
                     makeMove(word);
                     wordInput.value = '';
                 }
+            }
+        });
+        
+        copyLinkBtn.addEventListener('click', () => {
+            const link = gameLink.textContent;
+            navigator.clipboard.writeText(link)
+                .then(() => alert('Link copiado para a área de transferência!'))
+                .catch(err => console.error('Erro ao copiar link:', err));
+        });
+        
+        // Verifica se está entrando em um jogo existente ao carregar a página
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomParam = urlParams.get('room');
+            
+            if (roomParam) {
+                initGame(true);
             }
         });
     </script>
